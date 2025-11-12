@@ -11,3 +11,4 @@ authors = [
 ]
 
 [dependencies]
+clap = { version = "4.5.51", features = ["cargo"] }
