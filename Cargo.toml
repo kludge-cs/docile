@@ -1,0 +1,13 @@
+[package]
+name = "docile"
+license = "MIT"
+version = "0.1.0"
+edition = "2024"
+description = "Taming structured file formats for programmatic input"
+readme = "README.md"
+repository = "https://github.com/kludge-cs/docile"
+authors = [
+  "Kludge Cyber Systems <contact@kludgecs.com>"
+]
+
+[dependencies]
