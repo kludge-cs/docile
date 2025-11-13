@@ -11,3 +11,8 @@ authors = [
 ]
 
 [dependencies]
+tree-sitter = "0.25.10"
+tree-sitter-markdown = "0.7.1"
+
+[build-dependencies]
+cc="*"
