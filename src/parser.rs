@@ -46,6 +46,12 @@ impl<P: Parseable> Parsed<P> {
 		self.tree.root_node()
 	}
 
+	/// Returns an iterator over the children of a node.
+	pub fn children<'a>(&self, node: Node<'a>) -> Vec<Node<'a>> {
+		let mut cursor = node.walk();
+		node.children(&mut cursor).collect()
+	}
+
 	/// Returns the text content of a node.
 	pub fn node_text(&self, node: &Node) -> &str {
 		&self.source[node.byte_range()]
@@ -63,11 +69,6 @@ impl Parseable for Markdown {
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	fn children<'a>(node: Node<'a>) -> Vec<Node<'a>> {
-		let mut cursor = node.walk();
-		node.children(&mut cursor).collect()
-	}
 
 	fn assert_node<P: Parseable>(
 		doc: &Parsed<P>,
@@ -92,13 +93,13 @@ Foo Bar
 		let root = doc.root_node();
 		assert_eq!(root.kind(), "document");
 
-		let sections = children(root);
+		let sections = doc.children(root);
 		assert_eq!(sections.len(), 1);
 
 		let top = sections[0];
 		assert_node(&doc, top, "section", "# Foo\nBar\n\n## Baz\nFoo Bar\n");
 
-		let top_items = children(top);
+		let top_items = doc.children(top);
 		assert_eq!(top_items.len(), 3);
 		assert_node(&doc, top_items[0], "atx_heading", "# Foo\n");
 		assert_node(&doc, top_items[1], "paragraph", "Bar\n");
@@ -106,7 +107,7 @@ Foo Bar
 		let nested = top_items[2];
 		assert_node(&doc, nested, "section", "## Baz\nFoo Bar\n");
 
-		let nested_items = children(nested);
+		let nested_items = doc.children(nested);
 		assert_eq!(nested_items.len(), 2);
 
 		assert_node(&doc, nested_items[0], "atx_heading", "## Baz\n");
