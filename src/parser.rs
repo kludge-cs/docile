@@ -34,9 +34,11 @@ impl<P: Parseable> Treesitter<P> {
 	}
 
 	/// Parses the given source into a format for programmatic input.
-	pub fn parse(&mut self, source: &str) -> Option<Parsed<P>> {
-		let tree = self.parser.parse(source, None)?;
-		Some(Parsed { tree, source: source.to_string(), _marker: PhantomData })
+	pub fn parse(&mut self, source: impl Into<String>) -> Option<Parsed<P>> {
+		let source = source.into();
+		let tree = self.parser.parse(&source, None)?;
+
+		Some(Parsed { tree, source, _marker: PhantomData })
 	}
 }
 
