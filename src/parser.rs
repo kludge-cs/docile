@@ -64,6 +64,21 @@ impl Parseable for Markdown {
 mod tests {
 	use super::*;
 
+	fn children<'a>(node: Node<'a>) -> Vec<Node<'a>> {
+		let mut cursor = node.walk();
+		node.children(&mut cursor).collect()
+	}
+
+	fn assert_node<P: Parseable>(
+		doc: &Parsed<P>,
+		node: Node<'_>,
+		kind: &str,
+		text: &str,
+	) {
+		assert_eq!(node.kind(), kind);
+		assert_eq!(doc.node_text(&node), text);
+	}
+
 	#[test]
 	fn test_parsing() {
 		let src = r"# Foo
@@ -77,39 +92,24 @@ Foo Bar
 		let root = doc.root_node();
 		assert_eq!(root.kind(), "document");
 
-		// TODO: Write some helper, be it a macro or such, to make these tests
-		// less verbose.
-		let mut cursor = root.walk();
-		let children: Vec<_> = root.children(&mut cursor).collect();
-		assert_eq!(children.len(), 1);
+		let sections = children(root);
+		assert_eq!(sections.len(), 1);
 
-		let top = children[0];
-		assert_eq!(children[0].kind(), "section");
-		assert_eq!(doc.node_text(&top), "# Foo\nBar\n\n## Baz\nFoo Bar\n");
+		let top = sections[0];
+		assert_node(&doc, top, "section", "# Foo\nBar\n\n## Baz\nFoo Bar\n");
 
-		let mut top_cursor = top.walk();
-		let top_items: Vec<_> = top.children(&mut top_cursor).collect();
+		let top_items = children(top);
 		assert_eq!(top_items.len(), 3);
+		assert_node(&doc, top_items[0], "atx_heading", "# Foo\n");
+		assert_node(&doc, top_items[1], "paragraph", "Bar\n");
 
-		assert_eq!(top_items[0].kind(), "atx_heading");
-		assert_eq!(doc.node_text(&top_items[0]), "# Foo\n");
+		let nested = top_items[2];
+		assert_node(&doc, nested, "section", "## Baz\nFoo Bar\n");
 
-		assert_eq!(top_items[1].kind(), "paragraph");
-		assert_eq!(doc.node_text(&top_items[1]), "Bar\n");
-
-		let nested_section = top_items[2];
-		assert_eq!(nested_section.kind(), "section");
-		assert_eq!(doc.node_text(&nested_section), "## Baz\nFoo Bar\n");
-
-		let mut nested_cursor = nested_section.walk();
-		let nested_items: Vec<_> =
-			nested_section.children(&mut nested_cursor).collect();
+		let nested_items = children(nested);
 		assert_eq!(nested_items.len(), 2);
 
-		assert_eq!(nested_items[0].kind(), "atx_heading");
-		assert_eq!(doc.node_text(&nested_items[0]), "## Baz\n");
-
-		assert_eq!(nested_items[1].kind(), "paragraph");
-		assert_eq!(doc.node_text(&nested_items[1]), "Foo Bar\n");
+		assert_node(&doc, nested_items[0], "atx_heading", "## Baz\n");
+		assert_node(&doc, nested_items[1], "paragraph", "Foo Bar\n");
 	}
 }
