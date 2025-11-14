@@ -55,7 +55,7 @@ impl<P: Parseable> Parsed<P> {
 
 	/// Returns the text content of a node.
 	pub fn node_text(&self, node: &Node) -> &str {
-		&self.source[node.byte_range()]
+		node.utf8_text(self.source.as_bytes()).unwrap()
 	}
 }
 
@@ -89,7 +89,7 @@ Bar
 ## Baz
 Foo Bar
 ";
-		let doc = Treesitter::<Markdown>::new().parse(src).unwrap();
+		let doc = Treesitter::<Markdown>::new().parse(src.to_string()).unwrap();
 
 		let root = doc.root_node();
 		assert_eq!(root.kind(), "document");
