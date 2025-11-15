@@ -26,6 +26,12 @@ pub struct Span {
 	pub end: usize,
 }
 
+impl Span {
+	fn from_node(node: &Node) -> Self {
+		Self { start: node.start_byte(), end: node.end_byte() }
+	}
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Output {
 	/// The node kind
@@ -82,6 +88,7 @@ impl Parsed {
 	}
 
 	/// Converts a `Node` into an `Output` structure recursively.
+
 	pub fn to_output(&self, node: Node<'_>) -> Output {
 		let original = self.node_text(&node).to_string();
 		let children: Vec<Output> = self
@@ -92,9 +99,9 @@ impl Parsed {
 
 		Output {
 			kind: node.kind().to_string(),
-			original: original.clone(),
-			content: original,
-			span: Span { start: node.start_byte(), end: node.end_byte() },
+			content: original.clone(),
+			original,
+			span: Span::from_node(&node),
 			children,
 		}
 	}
