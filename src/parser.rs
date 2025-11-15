@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use tree_sitter::{Language, Node, Parser, Tree};
 
 /// Trait for languages that can be parsed by `docile`.
@@ -17,6 +18,31 @@ pub struct Parsed {
 pub struct Treesitter {
 	parser: Parser,
 	language: Box<dyn Parseable>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Span {
+	pub start: usize,
+	pub end: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Output {
+	/// The node kind
+	pub kind: String,
+
+	/// The original text content of the node
+	pub original: String,
+
+	/// The text content
+	pub content: String,
+
+	/// The byte range span
+	pub span: Span,
+
+	/// Child nodes
+	#[serde(skip_serializing_if = "Vec::is_empty", default)]
+	pub children: Vec<Output>,
 }
 
 impl Treesitter {
@@ -54,6 +80,29 @@ impl Parsed {
 	pub fn node_text(&self, node: &Node) -> &str {
 		node.utf8_text(self.source.as_bytes()).unwrap()
 	}
+
+	/// Converts a `Node` into an `Output` structure recursively.
+	pub fn to_output(&self, node: Node<'_>) -> Output {
+		let original = self.node_text(&node).to_string();
+		let children: Vec<Output> = self
+			.children(node)
+			.into_iter()
+			.map(|child| self.to_output(child))
+			.collect();
+
+		Output {
+			kind: node.kind().to_string(),
+			original: original.clone(),
+			content: original,
+			span: Span { start: node.start_byte(), end: node.end_byte() },
+			children,
+		}
+	}
+
+	pub fn to_json(&self) -> String {
+		let output = self.to_output(self.root_node());
+		serde_json::to_string_pretty(&output).unwrap()
+	}
 }
 
 /// `Parseable` implementation for Markdown using `tree-sitter-md`.
@@ -68,6 +117,13 @@ impl Parseable for Markdown {
 mod tests {
 	use super::*;
 
+	const SOURCE: &str = r"# Foo
+Bar
+
+## Baz
+Foo Bar
+";
+
 	fn assert_node(doc: &Parsed, node: Node<'_>, kind: &str, text: &str) {
 		assert_eq!(node.kind(), kind);
 		assert_eq!(doc.node_text(&node), text);
@@ -75,14 +131,9 @@ mod tests {
 
 	#[test]
 	fn test_parsing() {
-		let src = r"# Foo
-Bar
-
-## Baz
-Foo Bar
-";
-		let doc =
-			Treesitter::new(Box::new(Markdown)).parse(src.to_string()).unwrap();
+		let doc = Treesitter::new(Box::new(Markdown))
+			.parse(SOURCE.to_string())
+			.unwrap();
 
 		let root = doc.root_node();
 		assert_eq!(root.kind(), "document");
@@ -106,5 +157,18 @@ Foo Bar
 
 		assert_node(&doc, nested_items[0], "atx_heading", "## Baz\n");
 		assert_node(&doc, nested_items[1], "paragraph", "Foo Bar\n");
+	}
+
+	#[test]
+	fn test_serialization() {
+		let doc = Treesitter::new(Box::new(Markdown))
+			.parse(SOURCE.to_string())
+			.unwrap();
+
+		let json = doc.to_json();
+		let parsed: Output = serde_json::from_str(&json).unwrap();
+
+		assert_eq!(parsed.kind, "document");
+		assert_eq!(parsed.original, SOURCE);
 	}
 }
