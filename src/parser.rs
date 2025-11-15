@@ -1,47 +1,44 @@
-use std::marker::PhantomData;
-
 use tree_sitter::{Language, Node, Parser, Tree};
 
 /// Trait for languages that can be parsed by `docile`.
 /// Implement to add support for a new format.
 pub trait Parseable {
 	/// The `tree-sitter` language definition.
-	fn language() -> Language;
+	fn language(&self) -> Language;
 }
 
 /// A parsed document with its syntax tree.
-pub struct Parsed<P: Parseable> {
+pub struct Parsed {
 	tree: Tree,
 	source: String,
-	_marker: PhantomData<P>,
 }
 
 /// Generic `tree-sitter` parser for any `Parseable` language.
-pub struct Treesitter<P: Parseable> {
+pub struct Treesitter {
 	parser: Parser,
-	_marker: PhantomData<P>,
+	language: Box<dyn Parseable>,
 }
 
-impl<P: Parseable> Treesitter<P> {
+impl Treesitter {
 	/// Creates a new parser for the specified `Parseable` language.
-	pub fn new() -> Self {
+	pub fn new(language: Box<dyn Parseable>) -> Self {
 		let mut parser = Parser::new();
 		parser
-			.set_language(&P::language())
+			.set_language(&language.language())
 			.expect("Treesitter language not found.");
 
-		Self { parser, _marker: PhantomData }
+		Self { parser, language }
 	}
 
 	/// Parses the given source into a format for programmatic input.
-	pub fn parse(&mut self, source: String) -> Option<Parsed<P>> {
+	pub fn parse(&mut self, source: String) -> Option<Parsed> {
 		let tree = self.parser.parse(&source, None)?;
 
-		Some(Parsed { tree, source, _marker: PhantomData })
+		Some(Parsed { tree, source })
 	}
 }
 
-impl<P: Parseable> Parsed<P> {
+impl Parsed {
 	/// Returns the root node of the syntax tree.
 	pub fn root_node(&self) -> Node<'_> {
 		self.tree.root_node()
@@ -62,7 +59,7 @@ impl<P: Parseable> Parsed<P> {
 /// `Parseable` implementation for Markdown using `tree-sitter-md`.
 pub struct Markdown;
 impl Parseable for Markdown {
-	fn language() -> Language {
+	fn language(&self) -> Language {
 		tree_sitter_md::LANGUAGE.into()
 	}
 }
@@ -71,12 +68,7 @@ impl Parseable for Markdown {
 mod tests {
 	use super::*;
 
-	fn assert_node<P: Parseable>(
-		doc: &Parsed<P>,
-		node: Node<'_>,
-		kind: &str,
-		text: &str,
-	) {
+	fn assert_node(doc: &Parsed, node: Node<'_>, kind: &str, text: &str) {
 		assert_eq!(node.kind(), kind);
 		assert_eq!(doc.node_text(&node), text);
 	}
@@ -89,7 +81,8 @@ Bar
 ## Baz
 Foo Bar
 ";
-		let doc = Treesitter::<Markdown>::new().parse(src.to_string()).unwrap();
+		let doc =
+			Treesitter::new(Box::new(Markdown)).parse(src.to_string()).unwrap();
 
 		let root = doc.root_node();
 		assert_eq!(root.kind(), "document");
