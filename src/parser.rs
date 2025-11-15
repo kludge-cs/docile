@@ -88,7 +88,6 @@ impl Parsed {
 	}
 
 	/// Converts a `Node` into an `Output` structure recursively.
-
 	pub fn to_output(&self, node: Node<'_>) -> Output {
 		let original = self.node_text(&node).to_string();
 		let children: Vec<Output> = self
@@ -106,9 +105,9 @@ impl Parsed {
 		}
 	}
 
-	pub fn to_json(&self) -> String {
+	pub fn to_json(&self) -> Result<String, serde_json::Error> {
 		let output = self.to_output(self.root_node());
-		serde_json::to_string_pretty(&output).unwrap()
+		serde_json::to_string_pretty(&output)
 	}
 }
 
@@ -172,7 +171,7 @@ Foo Bar
 			.parse(SOURCE.to_string())
 			.unwrap();
 
-		let json = doc.to_json();
+		let json = doc.to_json().unwrap();
 		let parsed: Output = serde_json::from_str(&json).unwrap();
 
 		assert_eq!(parsed.kind, "document");
