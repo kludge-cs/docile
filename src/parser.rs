@@ -20,6 +20,7 @@ pub struct Treesitter {
 	language: Box<dyn Parseable>,
 }
 
+/// Byte range span within the source text.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Span {
 	pub start: usize,
@@ -27,11 +28,13 @@ pub struct Span {
 }
 
 impl Span {
+	/// Creates a `Span` from a `Node`.
 	fn from_node(node: &Node) -> Self {
 		Self { start: node.start_byte(), end: node.end_byte() }
 	}
 }
 
+/// Output structure representing a node in the syntax tree.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Output {
 	/// The node kind
@@ -105,6 +108,7 @@ impl Parsed {
 		}
 	}
 
+	/// Serializes the entire syntax tree to a pretty-printed JSON string.
 	pub fn to_json(&self) -> Result<String, serde_json::Error> {
 		let output = self.to_output(self.root_node());
 		serde_json::to_string_pretty(&output)
