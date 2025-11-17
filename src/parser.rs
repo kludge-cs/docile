@@ -8,17 +8,6 @@ pub trait Parseable {
 	fn language(&self) -> Language;
 }
 
-/// A parsed document with its syntax tree.
-pub struct Parsed {
-	tree: Tree,
-	source: String,
-}
-
-/// Generic `tree-sitter` parser for any `Parseable` language.
-pub struct Treesitter {
-	parser: Parser,
-}
-
 /// Byte range span within the source text.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Span {
@@ -67,23 +56,10 @@ impl Output {
 	}
 }
 
-impl Treesitter {
-	/// Creates a new parser for the specified `Parseable` language.
-	pub fn new(language: Box<dyn Parseable>) -> Self {
-		let mut parser = Parser::new();
-		parser
-			.set_language(&language.language())
-			.expect("Treesitter language not found.");
-
-		Self { parser }
-	}
-
-	/// Parses the given source into a format for programmatic input.
-	pub fn parse(&mut self, source: String) -> Option<Parsed> {
-		let tree = self.parser.parse(&source, None)?;
-
-		Some(Parsed { tree, source })
-	}
+/// A parsed document with its syntax tree.
+pub struct Parsed {
+	tree: Tree,
+	source: String,
 }
 
 impl Parsed {
@@ -130,8 +106,33 @@ impl Parsed {
 	}
 }
 
+/// Generic `tree-sitter` parser for any `Parseable` language.
+pub struct Treesitter {
+	parser: Parser,
+}
+
+impl Treesitter {
+	/// Creates a new parser for the specified `Parseable` language.
+	pub fn new(language: Box<dyn Parseable>) -> Self {
+		let mut parser = Parser::new();
+		parser
+			.set_language(&language.language())
+			.expect("Treesitter language not found.");
+
+		Self { parser }
+	}
+
+	/// Parses the given source into a format for programmatic input.
+	pub fn parse(&mut self, source: String) -> Option<Parsed> {
+		let tree = self.parser.parse(&source, None)?;
+
+		Some(Parsed { tree, source })
+	}
+}
+
 /// `Parseable` implementation for Markdown using `tree-sitter-md`.
 pub struct Markdown;
+
 impl Parseable for Markdown {
 	fn language(&self) -> Language {
 		tree_sitter_md::LANGUAGE.into()
