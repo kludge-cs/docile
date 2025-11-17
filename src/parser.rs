@@ -1,13 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tree_sitter::{Language, Node, Parser, Tree};
 
-/// Trait for languages that can be parsed by `docile`.
-/// Implement to add support for a new format.
-pub trait Parseable {
-	/// The `tree-sitter` language definition.
-	fn language(&self) -> Language;
-}
-
 /// Byte range span within the source text.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Span {
@@ -106,17 +99,17 @@ impl Parsed {
 	}
 }
 
-/// Generic `tree-sitter` parser for any `Parseable` language.
+/// Generic `tree-sitter` parser for any parseable language.
 pub struct Treesitter {
 	parser: Parser,
 }
 
 impl Treesitter {
-	/// Creates a new parser for the specified `Parseable` language.
-	pub fn new(language: Box<dyn Parseable>) -> Self {
+	/// Creates a new parser for the specified language.
+	pub fn new(language: impl Into<Language>) -> Self {
 		let mut parser = Parser::new();
 		parser
-			.set_language(&language.language())
+			.set_language(&language.into())
 			.expect("Treesitter language not found.");
 
 		Self { parser }
@@ -127,15 +120,6 @@ impl Treesitter {
 		let tree = self.parser.parse(&source, None)?;
 
 		Some(Parsed { tree, source })
-	}
-}
-
-/// `Parseable` implementation for Markdown using `tree-sitter-md`.
-pub struct Markdown;
-
-impl Parseable for Markdown {
-	fn language(&self) -> Language {
-		tree_sitter_md::LANGUAGE.into()
 	}
 }
 
@@ -163,7 +147,7 @@ Foo Bar
 
 	#[test]
 	fn test_parsing() {
-		let doc = Treesitter::new(Box::new(Markdown))
+		let doc = Treesitter::new(tree_sitter_md::LANGUAGE)
 			.parse(SOURCE.to_string())
 			.unwrap();
 
@@ -193,7 +177,7 @@ Foo Bar
 
 	#[test]
 	fn test_serialization() {
-		let doc = Treesitter::new(Box::new(Markdown))
+		let doc = Treesitter::new(tree_sitter_md::LANGUAGE)
 			.parse(SOURCE.to_string())
 			.unwrap();
 
@@ -206,7 +190,7 @@ Foo Bar
 
 	#[test]
 	fn test_uppercase_headings_processor() {
-		let doc = Treesitter::new(Box::new(Markdown))
+		let doc = Treesitter::new(tree_sitter_md::LANGUAGE)
 			.parse(SOURCE.to_string())
 			.unwrap();
 
