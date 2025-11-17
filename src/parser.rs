@@ -17,7 +17,6 @@ pub struct Parsed {
 /// Generic `tree-sitter` parser for any `Parseable` language.
 pub struct Treesitter {
 	parser: Parser,
-	language: Box<dyn Parseable>,
 }
 
 /// Byte range span within the source text.
@@ -54,6 +53,20 @@ pub struct Output {
 	pub children: Vec<Output>,
 }
 
+impl Output {
+	pub fn process<F>(&mut self, processor: &F) -> &mut Self
+	where
+		F: Fn(&mut Output),
+	{
+		for child in &mut self.children {
+			child.process(processor);
+		}
+
+		processor(self);
+		self
+	}
+}
+
 impl Treesitter {
 	/// Creates a new parser for the specified `Parseable` language.
 	pub fn new(language: Box<dyn Parseable>) -> Self {
@@ -62,7 +75,7 @@ impl Treesitter {
 			.set_language(&language.language())
 			.expect("Treesitter language not found.");
 
-		Self { parser, language }
+		Self { parser }
 	}
 
 	/// Parses the given source into a format for programmatic input.
@@ -108,10 +121,12 @@ impl Parsed {
 		}
 	}
 
-	/// Serializes the entire syntax tree to a pretty-printed JSON string.
-	pub fn to_json(&self) -> Result<String, serde_json::Error> {
-		let output = self.to_output(self.root_node());
-		serde_json::to_string_pretty(&output)
+	/// Serializes an output tree to a JSON string.
+	pub fn to_json(
+		&self,
+		output: &Output,
+	) -> Result<String, serde_json::Error> {
+		serde_json::to_string_pretty(output)
 	}
 }
 
@@ -137,6 +152,12 @@ Foo Bar
 	fn assert_node(doc: &Parsed, node: Node<'_>, kind: &str, text: &str) {
 		assert_eq!(node.kind(), kind);
 		assert_eq!(doc.node_text(&node), text);
+	}
+
+	fn uppercase_headings_processor(output: &mut Output) {
+		if output.kind == "atx_heading" {
+			output.content = output.content.to_uppercase();
+		}
 	}
 
 	#[test]
@@ -175,10 +196,27 @@ Foo Bar
 			.parse(SOURCE.to_string())
 			.unwrap();
 
-		let json = doc.to_json().unwrap();
+		let json = doc.to_json(&doc.to_output(doc.root_node())).unwrap();
 		let parsed: Output = serde_json::from_str(&json).unwrap();
 
 		assert_eq!(parsed.kind, "document");
 		assert_eq!(parsed.original, SOURCE);
+	}
+
+	#[test]
+	fn test_uppercase_headings_processor() {
+		let doc = Treesitter::new(Box::new(Markdown))
+			.parse(SOURCE.to_string())
+			.unwrap();
+
+		let mut output = doc.to_output(doc.root_node());
+		output.process(&uppercase_headings_processor);
+
+		let section = &output.children[0];
+		let heading = &section.children[0];
+
+		assert_eq!(heading.kind, "atx_heading");
+		assert_eq!(heading.content, "# FOO\n");
+		assert_eq!(heading.original, "# Foo\n");
 	}
 }
