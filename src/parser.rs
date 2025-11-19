@@ -8,9 +8,8 @@ pub struct Span {
 	pub end: usize,
 }
 
-impl Span {
-	/// Creates a `Span` from a `Node`.
-	fn from_node(node: &Node) -> Self {
+impl From<Node<'_>> for Span {
+	fn from(node: Node) -> Self {
 		Self { start: node.start_byte(), end: node.end_byte() }
 	}
 }
@@ -90,7 +89,7 @@ impl Parsed {
 			kind: node.kind().to_string(),
 			content: original.clone(),
 			original,
-			span: Span::from_node(&node),
+			span: Span::from(node),
 			children,
 		}
 	}
