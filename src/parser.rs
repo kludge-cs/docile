@@ -64,7 +64,12 @@ impl Parsed {
 	/// Returns an iterator over the children of a node.
 	pub fn children<'a>(&self, node: Node<'a>) -> Vec<Node<'a>> {
 		let mut cursor = node.walk();
-		node.children(&mut cursor).collect()
+
+		let children = node.children(&mut cursor);
+		let mut result = Vec::with_capacity(children.len());
+
+		result.extend(children);
+		result
 	}
 
 	/// Returns the text content of a node.
