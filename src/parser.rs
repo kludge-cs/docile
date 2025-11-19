@@ -144,6 +144,12 @@ Foo Bar
 		}
 	}
 
+	fn protocol_processor(output: &mut Output) {
+		if output.kind == "inline" && output.content.contains("http://") {
+			output.content = output.content.replace("http://", "https://");
+		}
+	}
+
 	#[test]
 	fn test_parsing() {
 		let doc = Treesitter::new(tree_sitter_md::LANGUAGE)
@@ -202,5 +208,30 @@ Foo Bar
 		assert_eq!(heading.kind, "atx_heading");
 		assert_eq!(heading.content, "# FOO\n");
 		assert_eq!(heading.original, "# Foo\n");
+	}
+
+	#[test]
+	fn test_protocol_processor() {
+		let source = "# Foo\n\n[Link](http://example.com)";
+		let doc = Treesitter::new(tree_sitter_md::LANGUAGE)
+			.parse(source.to_string())
+			.unwrap();
+
+		let mut output = doc.to_output(doc.root_node());
+		output
+			.process(&uppercase_headings_processor)
+			.process(&protocol_processor);
+
+		let section = &output.children[0];
+		let heading = &section.children[0];
+		assert_eq!(heading.kind, "atx_heading");
+		assert_eq!(heading.content, "# FOO\n");
+		assert_eq!(heading.original, "# Foo\n");
+
+		let paragraph = &section.children[1];
+		let inline = &paragraph.children[0];
+		assert_eq!(inline.kind, "inline");
+		assert_eq!(inline.content, "[Link](https://example.com)");
+		assert_eq!(inline.original, "[Link](http://example.com)");
 	}
 }
