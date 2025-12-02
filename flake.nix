@@ -1,6 +1,6 @@
 {
 	inputs = {
-		nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.05";
+		nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
 
 		hooks = {
 			url = "github:cachix/git-hooks.nix";
@@ -31,7 +31,7 @@
 
 		forAllSystems = f:
 			lib.genAttrs systems (system:
-					f rec {
+					f {
 						pkgs =
 							import nixpkgs {
 								inherit system;
@@ -59,7 +59,7 @@
 					pkgs,
 					system,
 				}: let
-					check = self.checks.${system}.pre-commit-check;
+					check = self.checks.${system}.pre-commit;
 				in {
 					default =
 						pkgs.mkShell {
@@ -98,10 +98,15 @@
 				});
 
 		checks =
-			forAllSystems ({system, ...}: {
-					pre-commit-check =
+			forAllSystems ({
+					system,
+					pkgs,
+					...
+				}: {
+					pre-commit =
 						hooks.lib.${system}.run {
 							src = ./.;
+							package = pkgs.prek;
 							hooks = {
 								convco.enable = true;
 								alejandra.enable = true;
@@ -129,7 +134,7 @@
 			description = "Taming structured file formats for programmatic input";
 			longDescription = ''
 				Docile  is a command-line tool for converting structured file formats into programmatic input.
-				It supports formats like pdf, docx, odt, markdown, and plain text.
+				It supports formats like markdown, reStructuredText, and asciidoc.
 			'';
 
 			license = licenses.mit;
